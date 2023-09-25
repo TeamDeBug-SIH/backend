@@ -77,7 +77,7 @@ class QuizView(APIView):
             ]
             )
 
-            quizRawData = completion.choices[0].message['content'].replace("\"",'"').replace("\n","")
+            quizRawData = completion.choices[0].message['content'].replace("\"",'"').replace("\n","").replace("choices","options").replace("answer","correctAnswer").replace("correct_answer","correctAnswer")
             if "```json" in quizRawData:
                 quizRawData = quizRawData.split("```json")[1]
             quizRawData = json.loads(quizRawData)
