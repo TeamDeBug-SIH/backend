@@ -1,6 +1,8 @@
 import json
+import os
 import random
 
+import dotenv
 import openai
 import requests
 from django.template import loader
@@ -9,11 +11,16 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-import backend.settings as settings
-
 from .models import Quiz
 
-openai.api_key = settings.OPEN_AI_API_KEY
+# import backend.settings as settings
+
+
+openai.api_key = os.environ["OPEN_AI_API_KEY"]
+
+
+dotenv_file = dotenv.find_dotenv()
+dotenv.load_dotenv(dotenv_file)
 
 class Learn(APIView):
     permission_classes = (permissions.AllowAny,)
@@ -27,14 +34,20 @@ class Learn(APIView):
 
         ##################################################### Youtube
 
-        ytLink = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q={}".format(query.replace(" ","%20"))
-        ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + settings.YOUTUBE_ACCOUNT}).text.replace("true","True").replace("false","False"))
+        ytLink = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=7&topicId=/m/01k8wb&q={}".format(query.replace(" ","%20"))
+        ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + os.environ["YOUTUBE_ACCOUNT"]}).text.replace("true","True").replace("false","False"))
+
+        if "error" in ytData.keys():
+            response = eval(requests.post('https://oauth2.googleapis.com/token', data={'client_id': os.environ["YOUTUBE_CLIENTID"],'client_secret': os.environ["YOUTUBE_CLIENTSECRET"],'refresh_token': os.environ["YOUTUBE_REFRESH"],'grant_type': 'refresh_token'}).text)
+            os.environ["YOUTUBE_ACCOUNT"] = response['access_token']
+            dotenv.set_key(dotenv_file, "YOUTUBE_ACCOUNT", os.environ["YOUTUBE_ACCOUNT"])
+            ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + os.environ["YOUTUBE_ACCOUNT"]}).text.replace("true","True").replace("false","False"))
         
         #################################################### Reddit
 
         redditLink = f'https://oauth.reddit.com/r/SBU/search?q={query}'
         redditData = requests.get(redditLink, headers={
-            'Authorization': f'bearer {settings.REDDIT_ACCOUNT}',
+            'Authorization': f'bearer {os.environ["REDDIT_ACCOUNT"]}',
             'User-agent': 'Mozilla/5.0',
             },params={'limit':'5'}).json()
 
