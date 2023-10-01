@@ -51,6 +51,8 @@ class UserCreate(APIView):
         data['email'] = requestRawData.get('email').lower()
         data['password'] = requestRawData.get('password')
         data['raw_password'] = requestRawData.get('password')
+        data["role"] = requestRawData.get("role")
+        
         serializer = UserSerializer(data = data)
         if serializer.is_valid(raise_exception=True):
             try:
