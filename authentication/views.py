@@ -13,17 +13,21 @@ from .serializers import UserSerializer
 
 
 class ObtainAuthToken(APIView):
-    permission_classes = (permissions.AllowAny,)
-    authentication_classes = ()
+    # permission_classes = (permissions.AllowAny,)
+    # authentication_classes = ()
 
     def post(self, request):
+        user_instance = authenticate(
+            email=request.data.get("email"), password=request.data.get("password")
+        )
         user_instance = authenticate(email=request.data.get('email'), password=request.data.get('password'))
         if user_instance is not None:
             refresh = RefreshToken.for_user(user_instance)
             return Response(data={"success": "true", "refresh": str(refresh), "access": str(refresh.access_token)}, status=status.HTTP_200_OK)
         else:
             return Response(data={"success": "false", "message": "User Not Found."})
-        
+
+
 class Config(APIView):
     # permission_classes = (permissions.AllowAny,)
     # authentication_classes = ()
@@ -32,9 +36,11 @@ class Config(APIView):
         data = {
             "success": "true",
             "user_details": UserSerializer(request.user).data,
+            "t": (request.user.role, request.user.is_authenticated),
         }
         return Response(data=data, status=status.HTTP_200_OK)
-    
+
+
 class UserCreate(APIView):
     permission_classes = (permissions.AllowAny,)
     authentication_classes = ()
@@ -47,17 +53,27 @@ class UserCreate(APIView):
 
         data = {}
         requestRawData = request.data
-        data['full_name'] = requestRawData.get('full_name').title()
-        data['email'] = requestRawData.get('email').lower()
-        data['password'] = requestRawData.get('password')
-        data['raw_password'] = requestRawData.get('password')
-        serializer = UserSerializer(data = data)
+        data["full_name"] = requestRawData.get("full_name").title()
+        data["email"] = requestRawData.get("email").lower()
+        data["password"] = requestRawData.get("password")
+        data["raw_password"] = requestRawData.get("password")
+        data["role"] = requestRawData.get("role")
+
+        serializer = UserSerializer(data=data)
         if serializer.is_valid(raise_exception=True):
             try:
                 created_user = serializer.save()
                 refresh = RefreshToken.for_user(created_user)
-                return Response(data={"success": "true","message":"User Created.", "refresh": str(refresh), "access": str(refresh.access_token)}, status=status.HTTP_200_OK)
+                return Response(
+                    data={
+                        "success": "true",
+                        "message": "User Created.",
+                        "refresh": str(refresh),
+                        "access": str(refresh.access_token),
+                    },
+                    status=status.HTTP_200_OK,
+                )
             except Exception as e:
-                return Response(data={"success":"false","message":str(e).title()})
+                return Response(data={"success": "false", "message": str(e).title()})
         else:
-            return Response(data={"success":"false","message":"Fields don't match."})
+            return Response(data={"success": "false", "message": "Fields don't match."})
