@@ -1,6 +1,8 @@
 import json
+import os
 import random
 
+import dotenv
 import openai
 import requests
 from django.template import loader
@@ -15,6 +17,55 @@ from authentication.models import User
 from .models import Quiz, TopicData
 
 openai.api_key = settings.OPEN_AI_API_KEY
+from django.contrib.auth import authenticate, login
+
+from googlesearch import search
+
+search_engines = {
+    "Google": "",
+    "startpage": "",
+    "GitHub": "site:github.com",
+    "Reddit": "site:reddit.com *learn",
+    "Wikipedia": "site:https://en.wikipedia.org/wiki",
+}
+
+
+def Search(query, site_query="", num_results=10):
+    query = f"{query} {site_query}".strip()
+    search_results = list(search(query, num=num_results, verify_ssl=True, pause=2))
+    return search_results
+
+
+def SearchStart(query, site_query="", num_results=10):
+    query = f"{query} {site_query}".strip()
+    from startpage import Startpage
+
+    task = Startpage()
+    search_results = list(task.search(query))
+    return search_results
+
+def search_api(data):
+    query = data.get("query", "python")  # Default query
+    selected_engine = data.get("engine", "Google")  # Default search engine
+
+    site_query = search_engines.get(selected_engine, "")
+    num_results = data.get("num_results", 10)
+    search_results = SearchStart(query, site_query, num_results=num_results)
+
+    # Convert the search results to a JSON response
+    response = [{"title": result, "url": result} for result in search_results]
+    return response
+
+from .models import Quiz
+
+# import backend.settings as settings
+
+
+openai.api_key = os.environ["OPEN_AI_API_KEY"]
+
+
+dotenv_file = dotenv.find_dotenv()
+dotenv.load_dotenv(dotenv_file)
 from django.contrib.auth import authenticate, login
 
 from googlesearch import search
@@ -81,14 +132,20 @@ class Learn(APIView):
             )
             TopicData.objects.create(topic=query)
 
-        ytLink = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q={}".format(query.replace(" ","%20"))
-        ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + settings.YOUTUBE_ACCOUNT}).text.replace("true","True").replace("false","False"))
+        ytLink = "https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=7&topicId=/m/01k8wb&q={}".format(query.replace(" ","%20"))
+        ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + os.environ["YOUTUBE_ACCOUNT"]}).text.replace("true","True").replace("false","False"))
 
+        if "error" in ytData.keys():
+            response = eval(requests.post('https://oauth2.googleapis.com/token', data={'client_id': os.environ["YOUTUBE_CLIENTID"],'client_secret': os.environ["YOUTUBE_CLIENTSECRET"],'refresh_token': os.environ["YOUTUBE_REFRESH"],'grant_type': 'refresh_token'}).text)
+            os.environ["YOUTUBE_ACCOUNT"] = response['access_token']
+            dotenv.set_key(dotenv_file, "YOUTUBE_ACCOUNT", os.environ["YOUTUBE_ACCOUNT"])
+            ytData = eval(requests.get(ytLink, headers = {"Authorization": "Bearer " + os.environ["YOUTUBE_ACCOUNT"]}).text.replace("true","True").replace("false","False"))
+        
         #################################################### Reddit
 
         redditLink = f'https://oauth.reddit.com/r/SBU/search?q={query}'
         redditData = requests.get(redditLink, headers={
-            'Authorization': f'bearer {settings.REDDIT_ACCOUNT}',
+            'Authorization': f'bearer {os.environ["REDDIT_ACCOUNT"]}',
             'User-agent': 'Mozilla/5.0',
             },params={'limit':'5'}).json()
 
@@ -136,12 +193,7 @@ class QuizView(APIView):
                 ],
             )
 
-            quizRawData = (
-                completion.choices[0]
-                .message["content"]
-                .replace('"', '"')
-                .replace("\n", "")
-            )
+            quizRawData = completion.choices[0].message['content'].replace("\"",'"').replace("\n","").replace("choices","options").replace("answer","correctAnswer").replace("correct_answer","correctAnswer")
             if "```json" in quizRawData:
                 quizRawData = quizRawData.split("```json")[1]
             quizRawData = json.loads(quizRawData)

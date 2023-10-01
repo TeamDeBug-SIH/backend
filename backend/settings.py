@@ -19,9 +19,10 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-OPEN_AI_API_KEY = os.environ.get('OPEN_AI_API_KEY')
-YOUTUBE_ACCOUNT = os.environ.get('YOUTUBE_ACCOUNT')
-REDDIT_ACCOUNT = os.environ.get('REDDIT_ACCOUNT')
+# OPEN_AI_API_KEY = os.environ.get('OPEN_AI_API_KEY')
+# YOUTUBE_REFRESH = os.environ.get('YOUTUBE_REFRESH')
+# YOUTUBE_ACCOUNT = os.environ.get('YOUTUBE_ACCOUNT')
+# REDDIT_ACCOUNT = os.environ.get('REDDIT_ACCOUNT')
 
 
 # Quick-start development settings - unsuitable for production
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'authentication',
     "home",
@@ -58,7 +60,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
+
+CORS_ORIGIN_ALLOW_ALL=True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
